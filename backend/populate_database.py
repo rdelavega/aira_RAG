@@ -32,14 +32,20 @@ def load_documents():
 
 
 def split_documents(documents):
+
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=500,
-        chunk_overlap=120,
+        chunk_overlap=100,
         length_function=len,
         separators=["\n\n", "\n", ". ", " ", ""],
     )
 
-    return text_splitter.split_documents(documents)
+    chunks = text_splitter.split_documents(documents)
+
+    # filtrar chunks muy pequeños
+    filtered_chunks = [c for c in chunks if len(c.page_content.strip()) > 100]
+
+    return filtered_chunks
 
 
 def add_to_chroma(chunks):

@@ -42,6 +42,7 @@ def main():
         query_text = input("You: ")
 
         if query_text.lower() == "exit":
+            print("Bye bye!")
             break
 
         query_rag(query_text)
@@ -51,7 +52,7 @@ embedding_function = get_embedding_function()
 
 db = Chroma(persist_directory=CHROMA_PATH, embedding_function=embedding_function)
 
-model = OllamaLLM(model="phi3", num_predict=140, temperature=0.2, streaming=True)
+model = OllamaLLM(model="mistral:7b", num_predict=350, temperature=0.2, streaming=True)
 
 
 def rerank_documents(query, docs, top_k=3):
@@ -84,28 +85,59 @@ def extract_relevant_sentences(query, docs):
     return filtered
 
 
+def generate_queries(question: str):
+
+    query_prompt = f"""
+Generate 3 different search queries for document retrieval.
+
+Each query must use a different perspective:
+
+1. Direct question
+2. Rule explanation
+3. Scenario description
+
+Question: {question}
+
+Queries:
+"""
+
+    response = model.invoke(query_prompt)
+
+    queries = [
+        q.strip("- ").strip().strip('"') for q in response.split("\n") if q.strip()
+    ]
+
+    return queries[:3]
+
+
 def query_rag(query_text: str):
 
     global chat_history
-
     start = time.time()
+    queries = generate_queries(query_text)
 
-    results = db.similarity_search_with_score(query_text, k=10)
-    print("vector search:", time.time() - start)
+    queries = list(set(queries))
+    print("query generation:", time.time() - start)
 
-    start = time.time()
-    docs = [doc for doc, _ in results]
+    all_docs = []
 
-    docs = rerank_documents(query_text, docs, top_k=2)
-    print("rerank:", time.time() - start)
+    for q in queries:
+        results = db.similarity_search_with_score(q, k=12)
+        all_docs.extend([doc for doc, _ in results])
+
+    # eliminar duplicados
+    unique_docs = list({doc.page_content: doc for doc in all_docs}.values())
+
+    docs = rerank_documents(query_text, unique_docs, top_k=3)
 
     # context_text = "\n\n---\n\n".join([doc.page_content for doc in docs])
 
-    filtered_docs = extract_relevant_sentences(query_text, docs)
+    # filtered_docs = extract_relevant_sentences(query_text, docs)
 
-    context_text = "\n\n".join(
-        [f"[Document {i+1}]\n{text}" for i, text in enumerate(filtered_docs)]
-    )
+    # context_text = "\n\n".join(
+    #     [f"[Document {i+1}]\n{text}" for i, text in enumerate(filtered_docs)]
+    # )
+    context_text = "\n\n---\n\n".join([doc.page_content for doc in docs])
 
     history_text = format_history()
 
