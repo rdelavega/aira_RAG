@@ -33,10 +33,10 @@ def load_documents():
 
 def split_documents(documents):
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=400,
-        chunk_overlap=50,
+        chunk_size=500,
+        chunk_overlap=120,
         length_function=len,
-        is_separator_regex=False,
+        separators=["\n\n", "\n", ". ", " ", ""],
     )
 
     return text_splitter.split_documents(documents)

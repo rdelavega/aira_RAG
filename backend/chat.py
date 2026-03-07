@@ -2,17 +2,23 @@ import time
 from langchain_chroma import Chroma
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama import OllamaLLM
-
+from sentence_transformers import CrossEncoder
 from get_embedding_function import get_embedding_function
 
 CHROMA_PATH = "chroma"
 
+reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+
 chat_history = []
 
 PROMPT_TEMPLATE = """
-You are an AI research assistant.
+You answer questions using ONLY the provided context.
 
-Use the following conversation history and context from documents to answer the question.
+Rules:
+- If the answer is not in the context, say:
+  "En base a los documentos proporcionados, no lo sé."
+- Quote the relevant sentence from the context.
+- Then explain briefly in 3-4 sentences.
 
 Conversation History:
 {history}
@@ -38,26 +44,68 @@ def main():
         if query_text.lower() == "exit":
             break
 
-        response = query_rag(query_text)
+        query_rag(query_text)
 
-        print(f"\nAIRA: {response}\n")
+
+embedding_function = get_embedding_function()
+
+db = Chroma(persist_directory=CHROMA_PATH, embedding_function=embedding_function)
+
+model = OllamaLLM(model="phi3", num_predict=140, temperature=0.2, streaming=True)
+
+
+def rerank_documents(query, docs, top_k=3):
+
+    pairs = [(query, doc.page_content) for doc in docs]
+
+    scores = reranker.predict(pairs)
+
+    scored_docs = list(zip(docs, scores))
+
+    scored_docs.sort(key=lambda x: x[1], reverse=True)
+
+    return [doc for doc, _ in scored_docs[:top_k]]
+
+
+def extract_relevant_sentences(query, docs):
+
+    keywords = query.lower().split()
+
+    filtered = []
+
+    for doc in docs:
+
+        sentences = doc.page_content.split(". ")
+
+        relevant = [s for s in sentences if any(word in s.lower() for word in keywords)]
+
+        filtered.append(". ".join(relevant))
+
+    return filtered
 
 
 def query_rag(query_text: str):
 
     global chat_history
 
-    embedding_function = get_embedding_function()
-
-    db = Chroma(persist_directory=CHROMA_PATH, embedding_function=embedding_function)
-
     start = time.time()
 
-    results = db.similarity_search_with_score(query_text, k=3)
+    results = db.similarity_search_with_score(query_text, k=10)
+    print("vector search:", time.time() - start)
 
-    print("retrieval:", time.time() - start)
+    start = time.time()
+    docs = [doc for doc, _ in results]
 
-    context_text = "\n\n---\n\n".join([doc.page_content for doc, _score in results])
+    docs = rerank_documents(query_text, docs, top_k=2)
+    print("rerank:", time.time() - start)
+
+    # context_text = "\n\n---\n\n".join([doc.page_content for doc in docs])
+
+    filtered_docs = extract_relevant_sentences(query_text, docs)
+
+    context_text = "\n\n".join(
+        [f"[Document {i+1}]\n{text}" for i, text in enumerate(filtered_docs)]
+    )
 
     history_text = format_history()
 
@@ -67,19 +115,27 @@ def query_rag(query_text: str):
         history=history_text, context=context_text, question=query_text
     )
 
-    model = OllamaLLM(model="llama3.2:3b", num_predict=150)
+    print("Prompt chars:", len(prompt))
 
     start = time.time()
 
-    response_text = model.invoke(prompt)
+    response_text = "AIRA: "
 
-    print("llm:", time.time() - start)
+    # STREAMING
+    for chunk in model.stream(prompt):
+        print(chunk, end="", flush=True)
+        response_text += chunk
 
+    print("\nllm:", time.time() - start)
+
+    # guardar en memoria del chat
     update_history(query_text, response_text)
 
-    sources = [doc.metadata.get("id", None) for doc, _score in results]
-    formatted_response = f"{response_text}\nFuentes: {sources}"
-    return formatted_response
+    sources = [doc.metadata.get("id", None) for doc in docs]
+
+    print("\nFuentes:", sources)
+
+    return response_text
 
 
 def format_history():
@@ -90,7 +146,10 @@ def format_history():
         role = message["role"]
         content = message["content"]
 
-        history_text += f"{role}: {content}\n"
+        if role == "user":
+            history_text += f"Q: {content}\n"
+        else:
+            history_text += f"A: {content}\n"
 
     return history_text
 
@@ -106,7 +165,7 @@ def update_history(user, ai):
 
 def trim_history():
 
-    MAX_MESSAGES = 8
+    MAX_MESSAGES = 4
 
     global chat_history
 
