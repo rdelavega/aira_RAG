@@ -129,7 +129,3 @@ See `requirements.txt` for complete dependency list.
 - Check that PDF files are in the `data/` directory
 - For GPU acceleration, modify device settings in embedding function
 - Monitor token limits for long documents
-
-## License
-
-[Add your license here]
