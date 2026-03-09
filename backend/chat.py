@@ -125,7 +125,6 @@ def query_rag(query_text: str):
         results = db.similarity_search_with_score(q, k=12)
         all_docs.extend([doc for doc, _ in results])
 
-    # eliminar duplicados
     unique_docs = list({doc.page_content: doc for doc in all_docs}.values())
 
     docs = rerank_documents(query_text, unique_docs, top_k=3)
@@ -153,14 +152,12 @@ def query_rag(query_text: str):
 
     response_text = "AIRA: "
 
-    # STREAMING
     for chunk in model.stream(prompt):
         print(chunk, end="", flush=True)
         response_text += chunk
 
     print("\nllm:", time.time() - start)
 
-    # guardar en memoria del chat
     update_history(query_text, response_text)
 
     sources = [doc.metadata.get("id", None) for doc in docs]
