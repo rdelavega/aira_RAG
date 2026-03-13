@@ -132,5 +132,12 @@ def clear_database():
         shutil.rmtree(CHROMA_PATH)
 
 
+def extract_text_from_pdf(file_path: str) -> str:
+    """Extrae texto completo de un PDF como string"""
+    loader = PyPDFLoader(file_path)
+    documents = loader.load()
+    return "\n\n".join([doc.page_content for doc in documents])
+
+
 if __name__ == "__main__":
     main()
