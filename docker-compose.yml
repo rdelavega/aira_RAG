@@ -1,0 +1,65 @@
+services:
+  # ── FastAPI RAG ──────────────────────────────────────────────
+  fastapi:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: aira-rag
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      #- ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OLLAMA_HOST=http://172.17.0.1:11434 # Ollama del host
+    volumes:
+      - ${VAULT_PATH}:/vault # Obsidian vault
+      - chroma_data:/app/chroma # Vector DB
+      - pdf_inbox:/app/data/documents # PDFs
+      - hf_cache:/root/.cache/huggingface # Cache embeddings
+    networks:
+      - aira-net
+
+  # ── OpenClaw gateway (agent + Telegram) ─────────────────────
+  openclaw-gateway:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: aira-openclaw
+    user: root
+    restart: unless-stopped
+    ports:
+      - "18789:18789"
+    environment:
+      - OLLAMA_API_KEY=ollama-local
+    volumes:
+      - ${VAULT_PATH}:/vault
+      - ./config/openclaw.json:/root/.openclaw/openclaw.json
+      - ./config/skills:/root/.openclaw/skills
+      - ./config/agent:/root/.openclaw/agents/main/agent
+    depends_on:
+      - fastapi
+    networks:
+      - aira-net
+
+  # ── OpenClaw CLI (for manual commands) ────────────────────
+  openclaw-cli:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: aira-openclaw-cli
+    profiles: ["cli"]
+    volumes:
+      - ./config/openclaw.json:/home/node/.openclaw/openclaw.json
+      - ./config/skills:/home/node/.openclaw/skills
+      - openclaw_config:/home/node/.openclaw
+    networks:
+      - aira-net
+    entrypoint: ["node", "dist/index.js"]
+
+# ── Volumes ──────────────────────────────────────────────────
+volumes:
+  chroma_data:
+  pdf_inbox:
+  hf_cache:
+  openclaw_config:
+
+# ── Internal nerwork ────────────────────────────────────────────────
+networks:
+  aira-net:
+    driver: bridge

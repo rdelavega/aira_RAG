@@ -1,12 +1,10 @@
 from langchain_chroma import Chroma
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama import OllamaLLM
-from sentence_transformers import CrossEncoder
 from rag.get_embedding_function import get_embedding_function
 
 CHROMA_PATH = "chroma"
 
-reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
 
 chat_history = []
 
@@ -36,20 +34,12 @@ embedding_function = get_embedding_function()
 
 db = Chroma(persist_directory=CHROMA_PATH, embedding_function=embedding_function)
 
-model = OllamaLLM(model="mistral:7b", num_predict=350, temperature=0.2, streaming=True)
+model = OllamaLLM(model="llama3.2:1b", num_predict=350, temperature=0.2, streaming=True)
 
 
 def rerank_documents(query, docs, top_k=3):
 
-    pairs = [(query, doc.page_content) for doc in docs]
-
-    scores = reranker.predict(pairs)
-
-    scored_docs = list(zip(docs, scores))
-
-    scored_docs.sort(key=lambda x: x[1], reverse=True)
-
-    return [doc for doc, _ in scored_docs[:top_k]]
+    return docs[:top_k]
 
 
 def generate_queries(question: str):
@@ -77,7 +67,7 @@ Queries:
     return queries[:3]
 
 
-def query_rag(query_text: str):
+def query_rag(query_text: str, scope: str = None):
 
     global chat_history
     queries = generate_queries(query_text)
@@ -87,8 +77,13 @@ def query_rag(query_text: str):
     all_docs = []
 
     for q in queries:
+        if scope:
+            results = db.similarity_search_with_score(
+                q, k=12, filter={"carpeta": scope}
+            )
+    else:
         results = db.similarity_search_with_score(q, k=12)
-        all_docs.extend([doc for doc, _ in results])
+    all_docs.extend([doc for doc, _ in results])
 
     unique_docs = list({doc.page_content: doc for doc in all_docs}.values())
 
@@ -144,7 +139,7 @@ def update_history(user, ai):
 
 def trim_history():
 
-    MAX_MESSAGES = 4
+    MAX_MESSAGES = 0
 
     global chat_history
 

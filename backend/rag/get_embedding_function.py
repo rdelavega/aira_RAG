@@ -1,10 +1,10 @@
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_ollama import OllamaEmbeddings
+import os
 
 
 def get_embedding_function():
-    embeddings = HuggingFaceEmbeddings(
-        model_name="BAAI/bge-m3",
-        model_kwargs={"device": "cpu"},
-        encode_kwargs={"normalize_embeddings": True},
+    embeddings = OllamaEmbeddings(
+        model="bge-m3",
+        base_url=os.getenv("OLLAMA_HOST", "http://host.docker.internal:11434"),
     )
     return embeddings

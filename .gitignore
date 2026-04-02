@@ -2,6 +2,13 @@
 __pycache__/
 .env
 data/
+chroma/
 summaries/
 backend/chroma/
 *.pyc
+**/auth-profiles.json
+config/agent/**/auth-profiles.json
+config/agent/auth-profiles.json
+config/skills/obsidian
+config/skills/spanish
+config/openclaw.json

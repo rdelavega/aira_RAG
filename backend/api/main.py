@@ -4,25 +4,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from rag.chat import query_rag
 from rag.populate_database import populate_database, ingest_document
+from dotenv import load_dotenv
 
-# from rag.obsidian_writer import write_book_to_vault  # nuevo
-import httpx
 import json
 import os
 import shutil
 import uuid
 import subprocess
 
+load_dotenv()
+
 # Config
-OPENCLAW_URL = "http://localhost:18789"
-OPENCLAW_TOKEN = ()  # el token del openclaw.json
-VAULT_PATH = "/home/rdlvg/Documentos/Obsidian Vault"
-TELEGRAM_CHAT_ID = ""  # tu chat id
+OPENCLAW_URL = os.getenv("OPENCLAW_URL")
+OPENCLAW_TOKEN = os.getenv("OPENCLAW_TOKEN")
+VAULT_PATH = os.getenv("VAULT_PATH")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 
 class ChatRequest(BaseModel):
     question: str
-    scope: str = None  # "10_Libros", "20_DISENO", etc.
+    scope: str = None
 
 
 app = FastAPI()
@@ -36,7 +37,6 @@ app.add_middleware(
 
 
 def notify_telegram(message: str):
-    """Notifica al usuario en Telegram via OpenClaw"""
     try:
         subprocess.run(
             [
@@ -52,18 +52,17 @@ def notify_telegram(message: str):
             ]
         )
     except Exception as e:
-        print(f"Error notificando AIRA: {e}")
+        print(f"Error notifying AIRA: {e}")
 
 
 async def run_ingest(file_path: str, original_name: str, job_id: str):
-    """Pipeline completo en background"""
     try:
         notify_telegram(f"Procesando *{original_name}*... (job `{job_id}`)")
 
-        # 1. Indexar en Chroma
+        # Index
         ingest_document(file_path)
 
-        # 2. Generar notas en Obsidian
+        # FIX generate notes on obsidian using tool
         # result = await write_book_to_vault(file_path, original_name, VAULT_PATH)
 
         notify_telegram(
@@ -113,7 +112,7 @@ async def upload_files(
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Responde inmediato, procesa en background
+        # process on background
         background_tasks.add_task(run_ingest, file_path, file.filename, job_id)
         jobs.append({"file": file.filename, "job_id": job_id})
 

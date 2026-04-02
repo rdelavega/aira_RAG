@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "profiles": {
+    "anthropic:manual": {
+      "type": "token",
+      "provider": "anthropic",
+      "token": "YOUR_ANTHROPIC_API_KEY"
+    }
+  },
+  "usageStats": {
+    "anthropic:manual": {
+      "errorCount": 0,
+      "lastUsed": 1774230531685
+    }
+  }
+}

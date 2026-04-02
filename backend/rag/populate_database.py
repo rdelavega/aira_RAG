@@ -133,7 +133,6 @@ def clear_database():
 
 
 def extract_text_from_pdf(file_path: str) -> str:
-    """Extrae texto completo de un PDF como string"""
     loader = PyPDFLoader(file_path)
     documents = loader.load()
     return "\n\n".join([doc.page_content for doc in documents])
