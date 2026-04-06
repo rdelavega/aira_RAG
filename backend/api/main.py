@@ -3,6 +3,7 @@ from fastapi import FastAPI, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from rag.chat import query_rag
+from rag.obsidian_writer import write_book_to_vault
 from rag.populate_database import populate_database, ingest_document
 from dotenv import load_dotenv
 
@@ -40,40 +41,53 @@ def notify_telegram(message: str):
     try:
         subprocess.run(
             [
-                "openclaw",
+                "docker",
+                "exec",
+                "aira-openclaw",
+                "node",
+                "dist/index.js",
                 "message",
                 "send",
                 "--channel",
                 "telegram",
                 "--target",
-                "7188574247",
+                os.getenv("TELEGRAM_CHAT_ID"),
                 "--message",
                 message,
-            ]
+            ],
+            timeout=15,
         )
     except Exception as e:
-        print(f"Error notifying AIRA: {e}")
+        print(f"Error notifying: {e}")
 
 
 async def run_ingest(file_path: str, original_name: str, job_id: str):
+    print(f"Iniciando ingesta: {original_name} ({job_id})")
     try:
         notify_telegram(f"Procesando *{original_name}*... (job `{job_id}`)")
 
         # Index
+        print("Indexando en Chroma...")
         ingest_document(file_path)
+        print(f"✅ Chroma listo, generando notas en Obsidian...")
 
         # FIX generate notes on obsidian using tool
-        # result = await write_book_to_vault(file_path, original_name, VAULT_PATH)
+        result = await write_book_to_vault(file_path, original_name, VAULT_PATH)
+        print(f"✅ Obsidian listo: {result}")
 
         notify_telegram(
             f"*{original_name}* lista!\n"
-            # f"Capítulos: {result['chapters']}\n"
-            # f" Examen: {result['exam_questions']} preguntas\n"
-            # f"Guardado en: `{result['vault_path']}`\n"
-            # f"Revisa borradores en `00_INBOX/Borradores_IA/`"
+            f"Capítulos: {result['chapters']}\n"
+            f" Examen: {result['exam_questions']} preguntas\n"
+            f"Guardado en: `{result['vault_path']}`\n"
+            f"Revisa borradores en `00_INBOX/Borradores_IA/`"
         )
     except Exception as e:
-        notify_telegram(f"Error procesando {original_name}: {str(e)}")
+        print(f"❌ Error en ingesta: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+        notify_telegram(f"❌ Error: {str(e)}")
 
 
 @app.get("/health")
@@ -103,6 +117,7 @@ async def populate(reset: bool = False):
 async def upload_files(
     background_tasks: BackgroundTasks, files: list[UploadFile] = File(...)
 ):
+    print("Running upload process...")
     jobs = []
     for file in files:
         job_id = str(uuid.uuid4())[:8]
@@ -113,6 +128,7 @@ async def upload_files(
             shutil.copyfileobj(file.file, buffer)
 
         # process on background
+        print("Adding task to background process...")
         background_tasks.add_task(run_ingest, file_path, file.filename, job_id)
         jobs.append({"file": file.filename, "job_id": job_id})
 

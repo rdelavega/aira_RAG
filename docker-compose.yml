@@ -9,13 +9,16 @@ services:
     ports:
       - "8000:8000"
     environment:
-      #- ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OLLAMA_HOST=http://172.17.0.1:11434 # Ollama del host
+      - VAULT_PATH=/vault
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
     volumes:
       - ${VAULT_PATH}:/vault # Obsidian vault
       - chroma_data:/app/chroma # Vector DB
       - pdf_inbox:/app/data/documents # PDFs
       - hf_cache:/root/.cache/huggingface # Cache embeddings
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - aira-net
 

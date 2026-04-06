@@ -35,16 +35,20 @@ def populate_database(reset=False):
 
 
 def ingest_document(file_path):
+    print(f"📂 Cargando archivo: {file_path}")
     if file_path.endswith(".pdf"):
         loader = PyPDFLoader(file_path)
     elif file_path.endswith(".md"):
         loader = UnstructuredMarkdownLoader(file_path)
     else:
         raise ValueError(f"Unsupported file type: {file_path}")
-
+    print(f"📄 Loader creado, cargando documentos...")
     documents = loader.load()
+    print(f"✅ {len(documents)} páginas cargadas, chunkeando...")
     chunks = split_documents(documents)
+    print(f"✅ {len(chunks)} chunks, agregando a Chroma...")
     add_to_chroma(chunks)
+    print(f"✅ Chroma actualizado")
 
 
 def load_documents():

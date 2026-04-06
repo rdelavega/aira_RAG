@@ -1,10 +1,10 @@
-from google import genai
+import anthropic
 import asyncio
 import os
 import re
 from datetime import datetime
 
-client = genai.Client()
+client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 
 async def write_book_to_vault(pdf_path: str, book_name: str, vault_path: str) -> dict:
@@ -56,16 +56,23 @@ async def write_book_to_vault(pdf_path: str, book_name: str, vault_path: str) ->
 
 async def analyze_chapter(text: str, num: int, book_name: str) -> str:
     response = await asyncio.to_thread(
-        client.models.generate_content(
-            model="gemini-3-flash-preview",
-            max_tokens=1000,
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"""Analiza este capítulo...{text[:4000]}""",
-                }
-            ],
-        ),
+        client.messages.create,
+        model="claude-haiku-4-5",
+        max_tokens=1000,
+        messages=[
+            {
+                "role": "user",
+                "content": f"""Analiza este capítulo del libro "{book_name}" y genera un resumen de 300-350 palabras en español.
+
+Incluye:
+- Idea central del capítulo
+- 3-5 conceptos clave con definición breve
+- Conexión con el resto del libro
+
+Capítulo {num}:
+{text[:4000]}""",
+            }
+        ],
     )
     return f"# Capítulo {num}\n\n{response.content[0].text}"
 
@@ -74,9 +81,21 @@ async def analyze_global(summaries: list, book_name: str) -> str:
     combined = "\n\n---\n\n".join(summaries[:10])
     response = await asyncio.to_thread(
         client.messages.create,
-        model="gemini-3-flash-preview",
+        model="claude-haiku-4-5",
         max_tokens=2000,
-        messages=[{"role": "user", "content": f"""Análisis global...{combined}"""}],
+        messages=[
+            {
+                "role": "user",
+                "content": f"""Con base en estos resúmenes del libro "{book_name}", genera:
+1. Tesis central (1 párrafo)
+2. Mapa de ideas principales
+3. Aplicaciones prácticas (3-5 puntos)
+4. Preguntas que deja abiertas
+
+Resúmenes:
+{combined}""",
+            }
+        ],
     )
     return f"# Análisis Global: {book_name}\n\n{response.content[0].text}"
 
@@ -84,10 +103,21 @@ async def analyze_global(summaries: list, book_name: str) -> str:
 async def generate_exam(global_analysis: str, book_name: str) -> str:
     response = await asyncio.to_thread(
         client.messages.create,
-        model="gemini-3-flash-preview",
+        model="claude-haiku-4-5",
         max_tokens=3000,
         messages=[
-            {"role": "user", "content": f"""Genera examen...{global_analysis[:3000]}"""}
+            {
+                "role": "user",
+                "content": f"""Genera un examen de 30 preguntas cerradas (opción múltiple, 4 opciones) sobre "{book_name}".
+
+Reglas:
+- Preguntas de comprensión, aplicación y análisis
+- Respuesta correcta al final en sección separada
+- Formato Markdown con numeración clara
+
+Contexto:
+{global_analysis[:3000]}""",
+            }
         ],
     )
     return f"# Examen: {book_name}\n\n{response.content[0].text}"
