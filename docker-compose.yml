@@ -10,7 +10,8 @@ services:
       - "8000:8000"
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - OLLAMA_HOST=http://172.17.0.1:11434 # Ollama del host
+      - OLLAMA_HOST=http://host.docker.internal:11434 # Ollama en Windows/host via Docker Desktop
+      - OLLAMA_CHAT_MODEL=${OLLAMA_CHAT_MODEL:-llama3.2:3b}
       - VAULT_PATH=/vault
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
     volumes:
@@ -19,6 +20,8 @@ services:
       - pdf_inbox:/app/data/documents # PDFs
       - hf_cache:/root/.cache/huggingface # Cache embeddings
       - /var/run/docker.sock:/var/run/docker.sock
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - aira-net
 
@@ -34,9 +37,18 @@ services:
       - OLLAMA_API_KEY=ollama-local
     volumes:
       - ${VAULT_PATH}:/vault
-      - ./config/openclaw.json:/root/.openclaw/openclaw.json
+      - ./config/openclaw.json:/tmp/openclaw.json
+      - ./config/skills:/tmp/skills
       - ./config/skills:/root/.openclaw/skills
-      - ./config/agent:/root/.openclaw/agents/main/agent
+      - ./config/agent:/tmp/agent
+      - openclaw_config:/root/.openclaw
+      - ./config/workspace:/tmp/workspace
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "cp /tmp/openclaw.json /root/.openclaw/openclaw.json; cp -r /tmp/skills/. /root/.openclaw/skills/ 2>/dev/null || true; cp -r /tmp/agent/. /root/.openclaw/agents/main/agent/ 2>/dev/null || true; cp -r /tmp/workspace/. /root/.openclaw/workspace/ 2>/dev/null || true; node dist/index.js gateway",
+      ]
     depends_on:
       - fastapi
     networks:
@@ -54,6 +66,15 @@ services:
     networks:
       - aira-net
     entrypoint: ["node", "dist/index.js"]
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: aira-searxng
+    restart: unless-stopped
+    volumes:
+      - ./config/searxng:/etc/searxng:rw
+    networks:
+      - aira-net
 
 # ── Volumes ──────────────────────────────────────────────────
 volumes:
