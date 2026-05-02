@@ -10,7 +10,5 @@ backend/chroma/
 config/agent/**/auth-profiles.json
 config/agent/auth-profiles.json
 config/skills/spanish
-config/skills/ingest
-config/skills/soul
 config/openclaw.json
 .cursor/

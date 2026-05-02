@@ -39,16 +39,11 @@ services:
       - ${VAULT_PATH}:/vault
       - ./config/openclaw.json:/tmp/openclaw.json
       - ./config/skills:/tmp/skills
-      - ./config/skills:/root/.openclaw/skills
       - ./config/agent:/tmp/agent
-      - openclaw_config:/root/.openclaw
       - ./config/workspace:/tmp/workspace
-    entrypoint:
-      [
-        "/bin/sh",
-        "-c",
-        "cp /tmp/openclaw.json /root/.openclaw/openclaw.json; cp -r /tmp/skills/. /root/.openclaw/skills/ 2>/dev/null || true; cp -r /tmp/agent/. /root/.openclaw/agents/main/agent/ 2>/dev/null || true; cp -r /tmp/workspace/. /root/.openclaw/workspace/ 2>/dev/null || true; node dist/index.js gateway",
-      ]
+      - ./config/entrypoint.sh:/entrypoint.sh
+      - openclaw_config:/root/.openclaw
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
     depends_on:
       - fastapi
     networks:
