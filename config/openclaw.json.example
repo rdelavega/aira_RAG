@@ -96,7 +96,7 @@
     "telegram": {
       "enabled": true,
       "dmPolicy": "open",
-      "botToken": "8672528632:AAHaKENiugg0MjYtZ1sCd7eOD19BCqjlxGk",
+      "botToken": "",
       "allowFrom": ["*"],
       "groupPolicy": "allowlist",
       "streaming": { "mode": "partial" }
