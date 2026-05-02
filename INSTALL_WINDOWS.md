@@ -54,7 +54,13 @@ OLLAMA_HOST=http://host.docker.internal:11434
 
 ---
 
-## 4. Configurar el bot de Telegram
+## 4. Configurar auth-profiles
+
+- Dentro de la carpeta AIRA_RAG busca en config/agent/auth-profiles.json.example
+- Renombra config/agent/auth-profiles.json.example a auth-profiles.json
+- Rellena con tu Anthropic API key
+
+## 5. Configurar el bot de Telegram
 
 - Abre Telegram y busca el bot `@MyAiraV1_bot`
 - Escríbele `/start`
@@ -62,14 +68,14 @@ OLLAMA_HOST=http://host.docker.internal:11434
 
 ---
 
-## 5. Primera instalación
+## 6. Primera instalación
 
 - Haz clic derecho en `setup-autostart.bat` → **Ejecutar como administrador**
 - Esto configura AIRA para que arranque automáticamente con Windows
 
 ---
 
-## 6. Iniciar AIRA
+## 7. Iniciar AIRA
 
 - Doble clic en `start-aira.bat`
 - Espera a que aparezca el mensaje de confirmación
