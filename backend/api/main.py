@@ -3,7 +3,7 @@ from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from rag.chat import query_rag, retrieve_documents
-from rag.obsidian_writer import write_book_to_vault
+from rag.obsidian_writer import write_book_to_vault, get_token_stats
 from rag.populate_database import populate_database, ingest_document
 from dotenv import load_dotenv
 import hashlib
@@ -167,6 +167,20 @@ async def run_ingest(file_path: str, original_name: str, job_id: str):
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
+
+
+@app.get("/stats")
+async def stats():
+    token_data = get_token_stats()
+    return {
+        "analysis_provider": os.getenv("ANALYSIS_PROVIDER", "anthropic"),
+        "pdf_analysis_tokens": token_data,
+        "note": (
+            "Solo se contabilizan tokens del pipeline de análisis de PDFs (obsidian_writer). "
+            "Los tokens del agente (conversaciones en Telegram) se pueden ver en "
+            "https://console.anthropic.com/usage"
+        ),
+    }
 
 
 @app.post("/chat")
