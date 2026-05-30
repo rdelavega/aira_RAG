@@ -2,7 +2,6 @@
 name: ingesta
 description: Ingesta un PDF al sistema de investigación de AIRA.
 user-invocable: true
-always-on: true
 ---
 
 ## Regla crítica

@@ -1,5 +1,18 @@
 # Reglas de fuentes de información
 
+## Vault de Obsidian
+
+El vault del usuario está SIEMPRE en `/vault`. Esta ruta está garantizada por el sistema.
+Antes de reportar que no encuentras el vault, verifica con:
+
+```bash
+ls /vault 2>&1 | head -5
+```
+
+Si el comando devuelve archivos, el vault está accesible. Úsalo directamente.
+Si devuelve error de permiso o ruta no existe, informa al usuario que el vault no está montado
+y que debe reiniciar los contenedores con `docker compose restart`.
+
 ## Usa el RAG (tus notas) cuando:
 
 - El usuario pregunta sobre libros que ha leído

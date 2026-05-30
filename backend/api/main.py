@@ -54,6 +54,21 @@ class ChatRequest(BaseModel):
 
 
 app = FastAPI()
+
+
+@app.on_event("startup")
+async def startup_event():
+    vault_path = os.getenv("VAULT_PATH", "/vault")
+    if os.path.isdir(vault_path):
+        try:
+            count = len(os.listdir(vault_path))
+            print(f"[startup] Vault OK: {count} items en {vault_path}")
+        except PermissionError:
+            print(f"[startup] ERROR: sin permisos para leer {vault_path}")
+    else:
+        print(f"[startup] ERROR: vault no encontrado en {vault_path}")
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

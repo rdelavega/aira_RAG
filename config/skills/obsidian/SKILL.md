@@ -1,7 +1,6 @@
 ---
 name: obsidian
 description: Lee, analiza y escribe notas en el vault de Obsidian del usuario
-always-on: true
 user-invocable: true
 ---
 
@@ -27,7 +26,7 @@ cat "/vault/ruta/nota.md"
 
 Cuando el usuario te pase una ruta que parezca carpeta (por ejemplo `00_INBOX/Borradores_IA/...` sin `.md`), **NO intentes leerla como archivo**.
 
-1) Verifica si es carpeta o archivo:
+1. Verifica si es carpeta o archivo:
 
 ```bash
 RUTA="/vault/00_INBOX/Borradores_IA/ALGO"
@@ -40,7 +39,8 @@ else
 fi
 ```
 
-2) Si es carpeta, prioriza leer primero (si existen):
+2. Si es carpeta, prioriza leer primero (si existen):
+
 - `00_Global.md`
 - `00_Examen.md`
 - `Capitulos/Cap01.md`

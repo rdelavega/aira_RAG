@@ -22,6 +22,12 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - aira-net
 
@@ -45,15 +51,19 @@ services:
     entrypoint: >
       /bin/sh -c "
       mkdir -p /root/.openclaw/agents/main/agent &&
-      mkdir -p /root/.openclaw/skills &&
       mkdir -p /root/.openclaw/workspace &&
+      rm -rf /root/.openclaw/skills && mkdir -p /root/.openclaw/skills &&
       cp /tmp/openclaw.json /root/.openclaw/openclaw.json &&
       cp -r /tmp/skills/. /root/.openclaw/skills/ &&
+      cp -r /tmp/workspace/. /root/.openclaw/workspace/ &&
       cp /tmp/agent/auth-profiles.json /root/.openclaw/agents/main/agent/auth-profiles.json &&
+      echo '=== Vault check ===' &&
+      ls /vault > /dev/null 2>&1 && echo 'Vault OK' || echo 'WARNING: /vault no accesible' &&
       exec node dist/index.js gateway
       "
     depends_on:
-      - fastapi
+      fastapi:
+        condition: service_healthy
     networks:
       - aira-net
 
