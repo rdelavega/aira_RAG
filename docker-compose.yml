@@ -40,6 +40,7 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - AGENT_MODEL=${AGENT_MODEL:-claude-haiku-4-5}
       - MAX_HISTORY_TURNS=${MAX_HISTORY_TURNS:-5}
+      - ALLOWED_USER_IDS=${ALLOWED_USER_IDS:-}
       - RAG_URL=http://fastapi:8000
       - SEARXNG_URL=http://searxng:8080
       - VAULT_PATH=/vault

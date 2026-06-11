@@ -20,6 +20,13 @@ TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 RAG_URL = os.getenv("RAG_URL", "http://fastapi:8000")
 MAX_MSG_LEN = 4000  # Telegram limit is 4096
 
+_raw_allowed = os.getenv("ALLOWED_USER_IDS", "").strip()
+ALLOWED_USERS: set[str] = set(filter(None, _raw_allowed.split(","))) if _raw_allowed else set()
+
+
+def _is_allowed(user_id: str) -> bool:
+    return not ALLOWED_USERS or user_id in ALLOWED_USERS
+
 
 async def _safe_reply(message, text: str):
     text = text[:MAX_MSG_LEN]
@@ -31,6 +38,8 @@ async def _safe_reply(message, text: str):
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
+    if not _is_allowed(user_id):
+        return
     await context.bot.send_chat_action(update.effective_chat.id, "typing")
     try:
         response = await run_agent(user_id, update.message.text)
@@ -41,6 +50,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _is_allowed(str(update.effective_user.id)):
+        return
     doc = update.message.document
     if not doc.file_name.lower().endswith(".pdf"):
         await update.message.reply_text("Solo acepto archivos PDF por esta vía.")
@@ -104,6 +115,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _is_allowed(str(update.effective_user.id)):
+        return
     clear_history(str(update.effective_user.id))
     await update.message.reply_text("🔄 Contexto reiniciado. ¿En qué te ayudo?")
 
@@ -114,7 +127,11 @@ def main():
     app.add_handler(CommandHandler("reset", cmd_reset))
     app.add_handler(MessageHandler(filters.Document.PDF, handle_document))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    logger.info(f"Aira bot iniciado (model: {os.getenv('AGENT_MODEL', 'claude-haiku-4-5')})")
+    model = os.getenv("AGENT_MODEL", "claude-haiku-4-5")
+    if ALLOWED_USERS:
+        logger.info(f"Aira bot iniciado (model: {model}, usuarios permitidos: {ALLOWED_USERS})")
+    else:
+        logger.warning(f"Aira bot iniciado (model: {model}, SIN RESTRICCION DE USUARIOS)")
     app.run_polling()
 
 

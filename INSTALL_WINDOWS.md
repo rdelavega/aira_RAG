@@ -40,10 +40,13 @@ Dentro de la carpeta `aira_RAG` que recibiste:
 ANTHROPIC_API_KEY=sk-ant-TU_KEY_AQUI
 VAULT_PATH=C:/Users/TuNombre/Documents/MiVault
 TELEGRAM_BOT_TOKEN=tu_bot_token_aqui
+ALLOWED_USER_IDS=123456789
 ```
 
 > **Importante:** La ruta del vault usa barras `/` no `\`  
 > Ejemplo correcto: `C:/Users/Cliente/Documents/ObsidianVault`
+
+Para obtener tu ID de Telegram: escríbele a **@userinfobot** en Telegram, te responde con tu ID numérico.
 
 ---
 
