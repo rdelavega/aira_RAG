@@ -12,3 +12,4 @@ config/agent/auth-profiles.json
 config/skills/spanish
 config/openclaw.json
 .cursor/
+CLAUDE.md

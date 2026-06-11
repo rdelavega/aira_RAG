@@ -13,5 +13,3 @@ pypdf==6.7.5
 anthropic
 python-dotenv==1.2.2
 pydantic==2.12.5
-unstructured
-markdown

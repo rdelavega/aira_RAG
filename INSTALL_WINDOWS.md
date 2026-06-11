@@ -1,93 +1,80 @@
-# Checklist de instalación AIRA — Windows (sin WSL)
+# Instalación AIRA — Windows
 
-## Pre-requisitos (instalar antes de empezar)
+## Pre-requisitos
 
-- [ ] **Docker Desktop** — https://www.docker.com/products/docker-desktop
-  - Instalar y abrir Docker Desktop
-  - Esperar a que el ícono de la ballena en la barra de tareas esté verde
-- [ ] **Ollama para Windows** — https://ollama.com/download/windows
-  - Instalar y abrir Ollama
-  - Verificar que el ícono de la llama aparece en la barra de tareas
-- [ ] **Obsidian** — https://obsidian.md
-  - Instalar y crear un vault nuevo (o usar uno existente)
-  - Anotar la ruta completa del vault (ej: C:\Users\Cliente\Documents\MiVault)
+Instala estas tres cosas antes de empezar:
+
+| Programa | Descarga | Para qué sirve |
+|---|---|---|
+| **Docker Desktop** | https://www.docker.com/products/docker-desktop | Ejecuta los servicios de AIRA |
+| **Ollama** | https://ollama.com/download/windows | Modelos de IA locales (embeddings) |
+| **Obsidian** | https://obsidian.md | Tu vault de notas |
+
+Después de instalar cada uno, ábrelos y espera a que estén corriendo:
+- Docker Desktop: el ícono de la ballena en la barra de tareas debe estar verde
+- Ollama: el ícono de la llama debe aparecer en la barra de tareas
 
 ---
 
-## 1. Descargar modelos de Ollama
+## 1. Descargar el modelo de embeddings
 
 Abre **PowerShell** y ejecuta:
 
 ```powershell
 ollama pull bge-m3
-ollama pull llama3.2:3b
 ```
 
-Esto puede tardar varios minutos dependiendo de la conexión.
+Esto puede tardar varios minutos. Solo necesitas hacerlo una vez.
 
 ---
 
-## 2. Copiar el proyecto
+## 2. Configurar el archivo .env
 
-- Recibe la carpeta `aira_RAG` del desarrollador (por USB, Drive, etc.)
-- Cópiala a una ubicación fácil de recordar, por ejemplo:
-  ```
-  C:\Users\Cliente\Documents\aira_RAG
-  ```
+Dentro de la carpeta `aira_RAG` que recibiste:
 
----
-
-## 3. Configurar el archivo .env
-
-- Dentro de la carpeta `aira_RAG`, encuentra el archivo `.env.example`
-- Cópialo y renómbralo a `.env`
-- Ábrelo con el Bloc de notas y rellena los valores:
+1. Busca el archivo `.env.example`
+2. Cópialo y renómbralo a `.env`
+3. Ábrelo con el Bloc de notas y rellena:
 
 ```
 ANTHROPIC_API_KEY=sk-ant-TU_KEY_AQUI
-VAULT_PATH=C:/Users/Cliente/Documents/MiVault
-TELEGRAM_CHAT_ID=TU_CHAT_ID
-OLLAMA_HOST=http://host.docker.internal:11434
+VAULT_PATH=C:/Users/TuNombre/Documents/MiVault
+TELEGRAM_BOT_TOKEN=tu_bot_token_aqui
 ```
 
-> ⚠️ Importante: La ruta del vault usa barras `/` no `\`
+> **Importante:** La ruta del vault usa barras `/` no `\`  
+> Ejemplo correcto: `C:/Users/Cliente/Documents/ObsidianVault`
 
 ---
 
-## 4. Configurar auth-profiles
+## 3. Iniciar AIRA
 
-- Dentro de la carpeta AIRA_RAG busca en config/agent/auth-profiles.json.example
-- Renombra config/agent/auth-profiles.json.example a auth-profiles.json
-- Rellena con tu Anthropic API key
+Doble clic en **`start-aira.bat`**
 
-## 5. Configurar el bot de Telegram
-
-- Abre Telegram y busca el bot `@MyAiraV1_bot`
-- Escríbele `/start`
-- Para obtener tu Chat ID: escríbele a `@userinfobot` en Telegram
+El script verifica automáticamente que todo esté en orden y arranca los servicios.
+Si algo falta, te indica exactamente qué hacer.
 
 ---
 
-## 6. Primera instalación
+## 4. (Opcional) Autoarranque con Windows
 
-- Haz clic derecho en `setup-autostart.bat` → **Ejecutar como administrador**
-- Esto configura AIRA para que arranque automáticamente con Windows
+Para que AIRA arranque solo cuando enciendes la computadora:
 
----
+1. Clic derecho en **`setup-autostart.bat`**
+2. Selecciona **Ejecutar como administrador**
 
-## 7. Iniciar AIRA
-
-- Doble clic en `start-aira.bat`
-- Espera a que aparezca el mensaje de confirmación
-- ¡Listo! Ya puedes usar el bot en Telegram
+Para desactivarlo más adelante:
+```
+schtasks /delete /tn "AIRA Autostart" /f
+```
 
 ---
 
 ## Uso diario
 
-- **AIRA arranca solo** cuando enciendes la computadora
-- Si necesitas apagarlo: doble clic en `stop-aira.bat`
-- Si necesitas reiniciarlo: doble clic en `start-aira.bat`
+- **Iniciar:** doble clic en `start-aira.bat`
+- **Detener:** doble clic en `stop-aira.bat`
+- Con autoarranque activado, no necesitas hacer nada — AIRA arranca solo
 
 ---
 
@@ -97,27 +84,30 @@ OLLAMA_HOST=http://host.docker.internal:11434
 
 1. En el chat con el bot, toca el ícono de adjuntar 📎
 2. Selecciona **Archivo** (no Foto)
-3. Elige tu PDF
-4. Escribe `/ingesta` y envía
+3. Elige tu PDF — el bot lo procesa automáticamente
 
 ### Hacer preguntas
 
-- Sobre tus notas: _"¿Qué dice mi nota sobre diseño?"_
-- Sobre tus libros: _"Resume el libro que subí sobre marketing"_
-- Buscar en internet: _"Busca las últimas noticias sobre IA"_
+- Sobre tus notas: *"¿Qué dice mi nota sobre diseño?"*
+- Sobre tus libros: *"Resume el libro que subí sobre marketing"*
+- Buscar en internet: *"Busca las últimas noticias sobre IA"*
 
-### Aprobar borradores
+### Reiniciar contexto
 
-- Los análisis generados se guardan en `00_INBOX/Borradores_IA/`
-- Cuando los revises y apruebes, dile a AIRA: _"Aprueba el borrador de [nombre]"_
+Si el bot parece confundido o quieres empezar de cero:
+
+```
+/reset
+```
 
 ---
 
 ## Solución de problemas
 
-| Problema                | Solución                                                              |
-| ----------------------- | --------------------------------------------------------------------- |
-| Docker no arranca       | Abre Docker Desktop manualmente y espera a que el ícono esté verde    |
-| Ollama no conecta       | Abre Ollama desde el menú de inicio                                   |
-| El bot no responde      | Verifica que Docker Desktop esté corriendo y ejecuta `start-aira.bat` |
-| Error de ruta del vault | Verifica que la ruta en `.env` usa `/` no `\`                         |
+| Problema | Solución |
+|---|---|
+| Docker no arranca | Abre Docker Desktop y espera a que el ícono esté verde |
+| Ollama no conecta | Abre Ollama desde el menú de inicio |
+| El bot no responde | Verifica Docker Desktop y ejecuta `start-aira.bat` |
+| Error de ruta del vault | La ruta en `.env` debe usar `/` en vez de `\` |
+| Primera vez tarda mucho | Es normal — está descargando el modelo de embeddings |

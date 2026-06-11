@@ -8,8 +8,6 @@ import os
 CHROMA_PATH = "chroma"
 
 
-chat_history = []
-
 PROMPT_TEMPLATE = """
 You answer questions using ONLY the provided context.
 
@@ -18,9 +16,6 @@ Rules:
   "En base a los documentos proporcionados, no lo sé."
 - Quote the relevant sentence from the context.
 - Then explain briefly in 3-4 sentences.
-
-Conversation History:
-{history}
 
 Context:
 {context}
@@ -82,29 +77,28 @@ Queries:
 
 
 def query_rag(query_text: str, scope: str = None):
-
-    global chat_history
     docs, sources = retrieve_documents(query_text, scope=scope, top_k=3)
-
     context_text = "\n\n---\n\n".join([doc.page_content for doc in docs])
-
-    history_text = format_history()
-
-    prompt_template = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
-
-    prompt = prompt_template.format(
-        history=history_text, context=context_text, question=query_text
+    prompt = ChatPromptTemplate.from_template(PROMPT_TEMPLATE).format(
+        context=context_text, question=query_text
     )
-
-    response_text = ""
-
     for chunk in model.stream(prompt):
         yield {"type": "chunk", "content": chunk}
-        response_text += chunk
-
-    update_history(query_text, response_text)
-
     yield {"type": "sources", "content": sources}
+
+
+def query_rag_sync(query_text: str, scope: str = None) -> dict:
+    docs, sources = retrieve_documents(query_text, scope=scope, top_k=3)
+    context_text = "\n\n---\n\n".join([doc.page_content for doc in docs])
+    prompt = ChatPromptTemplate.from_template(PROMPT_TEMPLATE).format(
+        context=context_text, question=query_text
+    )
+    answer = model.invoke(prompt)
+    compact_sources = [
+        {"filename": s["filename"], "snippet": s["snippet"]}
+        for s in sources
+    ]
+    return {"answer": answer, "sources": compact_sources}
 
 
 def retrieve_documents(
@@ -157,36 +151,3 @@ def retrieve_documents(
     return docs, sources
 
 
-def format_history():
-
-    history_text = ""
-
-    for message in chat_history:
-        role = message["role"]
-        content = message["content"]
-
-        if role == "user":
-            history_text += f"Q: {content}\n"
-        else:
-            history_text += f"A: {content}\n"
-
-    return history_text
-
-
-def update_history(user, ai):
-
-    chat_history.append({"role": "user", "content": user})
-
-    chat_history.append({"role": "assistant", "content": ai})
-
-    trim_history()
-
-
-def trim_history():
-
-    MAX_MESSAGES = 0
-
-    global chat_history
-
-    if len(chat_history) > MAX_MESSAGES:
-        chat_history = chat_history[-MAX_MESSAGES:]

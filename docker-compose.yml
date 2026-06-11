@@ -13,13 +13,11 @@ services:
       - OLLAMA_HOST=http://host.docker.internal:11434 # Ollama en Windows/host via Docker Desktop
       - OLLAMA_CHAT_MODEL=${OLLAMA_CHAT_MODEL:-llama3.2:3b}
       - VAULT_PATH=/vault
-      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
     volumes:
       - ${VAULT_PATH}:/vault # Obsidian vault
       - chroma_data:/app/chroma # Vector DB
       - pdf_inbox:/app/data/documents # PDFs
       - hf_cache:/root/.cache/huggingface # Cache embeddings
-      - /var/run/docker.sock:/var/run/docker.sock
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
@@ -31,57 +29,27 @@ services:
     networks:
       - aira-net
 
-  # ── OpenClaw gateway (agent + Telegram) ─────────────────────
-  openclaw-gateway:
-    image: ghcr.io/openclaw/openclaw:latest
-    container_name: aira-openclaw
-    user: root
+  # ── Aira bot (Telegram + Claude API directo) ────────────────
+  aira-bot:
+    build:
+      context: backend/bot
+    container_name: aira-bot
     restart: unless-stopped
-    ports:
-      - "18789:18789"
     environment:
-      - OLLAMA_API_KEY=ollama-local
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - AGENT_MODEL=${AGENT_MODEL:-anthropic/claude-haiku-4-5}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - AGENT_MODEL=${AGENT_MODEL:-claude-haiku-4-5}
+      - MAX_HISTORY_TURNS=${MAX_HISTORY_TURNS:-5}
+      - RAG_URL=http://fastapi:8000
+      - SEARXNG_URL=http://searxng:8080
+      - VAULT_PATH=/vault
     volumes:
       - ${VAULT_PATH}:/vault
-      - ./config/openclaw.json:/tmp/openclaw.json
-      - ./config/skills:/tmp/skills
-      - ./config/agent:/tmp/agent
-      - ./config/workspace:/tmp/workspace
-      - openclaw_config:/root/.openclaw
-    entrypoint: >
-      /bin/sh -c "
-      mkdir -p /root/.openclaw/agents/main/agent &&
-      mkdir -p /root/.openclaw/workspace &&
-      rm -rf /root/.openclaw/skills && mkdir -p /root/.openclaw/skills &&
-      sed \"s|\${TELEGRAM_BOT_TOKEN}|${TELEGRAM_BOT_TOKEN}|g; s|\${AGENT_MODEL}|${AGENT_MODEL}|g\" /tmp/openclaw.json > /root/.openclaw/openclaw.json &&
-      cp -r /tmp/skills/. /root/.openclaw/skills/ &&
-      cp -r /tmp/workspace/. /root/.openclaw/workspace/ &&
-      sed \"s|\${ANTHROPIC_API_KEY}|${ANTHROPIC_API_KEY}|g\" /tmp/agent/auth-profiles.json > /root/.openclaw/agents/main/agent/auth-profiles.json &&
-      echo '=== Vault check ===' &&
-      ls /vault > /dev/null 2>&1 && echo 'Vault OK' || echo 'WARNING: /vault no accesible' &&
-      exec node dist/index.js gateway
-      "
     depends_on:
       fastapi:
         condition: service_healthy
     networks:
       - aira-net
-
-  # ── OpenClaw CLI (for manual commands) ────────────────────
-  openclaw-cli:
-    image: ghcr.io/openclaw/openclaw:latest
-    container_name: aira-openclaw-cli
-    profiles: ["cli"]
-    volumes:
-      - ./config/openclaw.json:/home/node/.openclaw/openclaw.json
-      - ./config/skills:/home/node/.openclaw/skills
-      - openclaw_config:/home/node/.openclaw
-    networks:
-      - aira-net
-    entrypoint: ["node", "dist/index.js"]
 
   searxng:
     image: searxng/searxng:latest
@@ -97,7 +65,6 @@ volumes:
   chroma_data:
   pdf_inbox:
   hf_cache:
-  openclaw_config:
 
 # ── Internal nerwork ────────────────────────────────────────────────
 networks:

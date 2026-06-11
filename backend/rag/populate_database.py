@@ -6,7 +6,6 @@ from langchain_community.document_loaders import (
     PyPDFLoader,
     DirectoryLoader,
     TextLoader,
-    UnstructuredMarkdownLoader,
 )
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
@@ -34,16 +33,19 @@ def populate_database(reset=False):
     add_to_chroma(chunks)
 
 
-def ingest_document(file_path):
+def ingest_document(file_path, extra_metadata=None):
     print(f"📂 Cargando archivo: {file_path}")
     if file_path.endswith(".pdf"):
         loader = PyPDFLoader(file_path)
     elif file_path.endswith(".md"):
-        loader = UnstructuredMarkdownLoader(file_path)
+        loader = TextLoader(file_path)
     else:
         raise ValueError(f"Unsupported file type: {file_path}")
     print(f"📄 Loader creado, cargando documentos...")
     documents = loader.load()
+    if extra_metadata:
+        for doc in documents:
+            doc.metadata.update(extra_metadata)
     print(f"✅ {len(documents)} páginas cargadas, chunkeando...")
     chunks = split_documents(documents)
     print(f"✅ {len(chunks)} chunks, agregando a Chroma...")
@@ -59,7 +61,7 @@ def load_documents():
     documents.extend(pdf_loader.load())
 
     md_loader = DirectoryLoader(
-        DATA_PATH, glob="**/*.md", loader_cls=UnstructuredMarkdownLoader
+        DATA_PATH, glob="**/*.md", loader_cls=TextLoader
     )
 
     documents.extend(md_loader.load())

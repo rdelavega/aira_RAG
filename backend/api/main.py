@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from rag.chat import query_rag, retrieve_documents
+from rag.chat import query_rag, query_rag_sync, retrieve_documents
 from rag.obsidian_writer import write_book_to_vault, get_token_stats
 from rag.populate_database import populate_database, ingest_document
 from dotenv import load_dotenv
@@ -11,17 +11,14 @@ import json
 import os
 import shutil
 import uuid
-import subprocess
+import asyncio
 import time
 
 load_dotenv()
 
 # Config
-OPENCLAW_URL = os.getenv("OPENCLAW_URL")
-OPENCLAW_TOKEN = os.getenv("OPENCLAW_TOKEN")
 VAULT_PATH = os.getenv("VAULT_PATH")
 VAULT_INDEX_PATH = "/app/chroma/vault_index.json"
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 JOB_TTL_SECONDS = int(os.getenv("JOB_TTL_SECONDS", "86400"))
 _JOBS: dict[str, dict] = {}
@@ -95,29 +92,6 @@ def save_vault_index(index):
         json.dump(index, f)
 
 
-def notify_telegram(message: str):
-    try:
-        subprocess.run(
-            [
-                "docker",
-                "exec",
-                "aira-openclaw",
-                "node",
-                "dist/index.js",
-                "message",
-                "send",
-                "--channel",
-                "telegram",
-                "--target",
-                os.getenv("TELEGRAM_CHAT_ID"),
-                "--message",
-                message,
-            ],
-            timeout=15,
-        )
-    except Exception as e:
-        print(f"Error notifying: {e}")
-
 
 async def run_ingest(file_path: str, original_name: str, job_id: str):
     print(f"Iniciando ingesta: {original_name} ({job_id})")
@@ -161,7 +135,7 @@ async def run_ingest(file_path: str, original_name: str, job_id: str):
             error_type=type(e).__name__,
             error=str(e),
         )
-        notify_telegram(f"Error: {str(e)}")
+        print(f"[ingest error] {job_id}: {e}")
 
 
 @app.get("/health")
@@ -181,6 +155,12 @@ async def stats():
             "https://console.anthropic.com/usage"
         ),
     }
+
+
+@app.post("/query")
+async def query(request: ChatRequest):
+    result = await asyncio.to_thread(query_rag_sync, request.question, request.scope)
+    return result
 
 
 @app.post("/chat")
@@ -266,13 +246,13 @@ async def get_job(job_id: str):
 
 
 @app.post("/index-vault")
-async def index_vault():
+async def index_vault(force: bool = False):
     import glob
 
     vault_path = os.getenv("VAULT_PATH", "/vault")
     md_files = glob.glob(f"{vault_path}/**/*.md", recursive=True)
 
-    vault_index = load_vault_index()
+    vault_index = {} if force else load_vault_index()
     indexed = 0
     skipped = 0
 
@@ -282,7 +262,9 @@ async def index_vault():
             skipped += 1
             continue
         try:
-            ingest_document(md_file)
+            rel = os.path.relpath(md_file, vault_path)
+            carpeta = rel.split(os.sep)[0]
+            ingest_document(md_file, extra_metadata={"carpeta": carpeta})
             vault_index[md_file] = current_hash
             indexed += 1
         except Exception as e:
