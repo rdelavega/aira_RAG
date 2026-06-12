@@ -65,6 +65,22 @@ async def startup_event():
     else:
         print(f"[startup] ERROR: vault no encontrado en {vault_path}")
 
+    ollama_host = os.getenv("OLLAMA_HOST", "http://host.docker.internal:11434")
+    import httpx
+    for attempt in range(5):
+        try:
+            async with httpx.AsyncClient(timeout=30) as http:
+                resp = await http.post(
+                    f"{ollama_host}/api/embed",
+                    json={"model": "bge-m3", "input": "warmup"},
+                )
+            if resp.status_code == 200:
+                print("[startup] bge-m3 warmup OK")
+                break
+        except Exception as e:
+            print(f"[startup] bge-m3 warmup intento {attempt+1}/5: {e}")
+            await asyncio.sleep(3)
+
 
 app.add_middleware(
     CORSMiddleware,
