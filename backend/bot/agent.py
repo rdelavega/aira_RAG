@@ -1,13 +1,18 @@
 import asyncio
+import json
 import os
 import anthropic
+import httpx
 from tools import execute_tool, TOOL_DEFINITIONS
 from ctx import get_history, add_exchange
 
 _raw_model = os.getenv("AGENT_MODEL", "claude-haiku-4-5")
-MODEL = _raw_model.replace("anthropic/", "")  # strip OpenClaw-style prefix if present
+_is_ollama = _raw_model.startswith("ollama/")
+MODEL = _raw_model.replace("anthropic/", "").replace("ollama/", "")
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://host.docker.internal:11434")
 
-client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+if not _is_ollama:
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
 SYSTEM_PROMPT = """\
 Eres Aira, asistente personal de investigación. Responde SIEMPRE en español, \
@@ -36,7 +41,54 @@ SIEMPRE úsalo antes de buscar en internet cuando la pregunta sea sobre contenid
 """
 
 
+_OPENAI_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": t["name"],
+            "description": t["description"],
+            "parameters": t["input_schema"],
+        },
+    }
+    for t in TOOL_DEFINITIONS
+]
+
+
+async def _run_ollama(user_id: str, user_message: str) -> str:
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    messages += get_history(user_id)
+    messages.append({"role": "user", "content": user_message})
+
+    async with httpx.AsyncClient(timeout=120) as http:
+        while True:
+            resp = await http.post(
+                f"{OLLAMA_HOST}/v1/chat/completions",
+                json={"model": MODEL, "messages": messages, "tools": _OPENAI_TOOLS, "stream": False},
+            )
+            resp.raise_for_status()
+            choice = resp.json()["choices"][0]
+            msg = choice["message"]
+
+            if not msg.get("tool_calls"):
+                text = msg.get("content") or ""
+                add_exchange(user_id, user_message, text)
+                return text
+
+            messages.append(msg)
+            for tc in msg["tool_calls"]:
+                args = json.loads(tc["function"]["arguments"])
+                result = await execute_tool(tc["function"]["name"], args)
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc["id"],
+                    "content": str(result),
+                })
+
+
 async def run_agent(user_id: str, user_message: str) -> str:
+    if _is_ollama:
+        return await _run_ollama(user_id, user_message)
+
     messages = get_history(user_id) + [{"role": "user", "content": user_message}]
 
     while True:

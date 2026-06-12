@@ -64,11 +64,15 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         tmp_path = f"/tmp/{doc.file_name}"
         await tg_file.download_to_drive(tmp_path)
 
-        async with httpx.AsyncClient(timeout=15) as client:
+        target_folder = (update.message.caption or "").strip() or None
+
+        async with httpx.AsyncClient(timeout=60) as client:
             with open(tmp_path, "rb") as f:
+                form_data = {"target_folder": target_folder} if target_folder else {}
                 resp = await client.post(
                     f"{RAG_URL}/upload",
                     files={"files": (doc.file_name, f, "application/pdf")},
+                    data=form_data,
                 )
             resp.raise_for_status()
             data = resp.json()
@@ -80,7 +84,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         job_id = jobs[0]["job_id"]
 
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=30) as client:
             for _ in range(600):
                 await asyncio.sleep(3)
                 resp = await client.get(f"{RAG_URL}/jobs/{job_id}")
@@ -100,7 +104,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⏱ El procesamiento está tardando. Intenta más tarde.")
 
     except Exception as e:
-        logger.error(f"Error procesando PDF: {e}")
+        logger.error(f"Error procesando PDF: {type(e).__name__}: {e}")
         await update.message.reply_text("❌ Error al procesar el archivo.")
 
 

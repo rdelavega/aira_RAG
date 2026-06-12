@@ -7,7 +7,7 @@ services:
     container_name: aira-rag
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "18000:8000"
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OLLAMA_HOST=http://host.docker.internal:11434 # Ollama en Windows/host via Docker Desktop
@@ -44,8 +44,11 @@ services:
       - RAG_URL=http://fastapi:8000
       - SEARXNG_URL=http://searxng:8080
       - VAULT_PATH=/vault
+      - OLLAMA_HOST=http://host.docker.internal:11434
     volumes:
       - ${VAULT_PATH}:/vault
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       fastapi:
         condition: service_healthy

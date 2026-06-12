@@ -57,7 +57,7 @@ async def _generate(prompt: str, max_tokens: int) -> str:
     return response.content[0].text
 
 
-async def write_book_to_vault(pdf_path: str, book_name: str, vault_path: str) -> dict:
+async def write_book_to_vault(pdf_path: str, book_name: str, vault_path: str, target_folder: str = None) -> dict:
 
     from rag.populate_database import extract_text_from_pdf
 
@@ -65,8 +65,12 @@ async def write_book_to_vault(pdf_path: str, book_name: str, vault_path: str) ->
 
     chapters = split_into_chapters(full_text)
 
-    clean_name = re.sub(r"[^\w\s-]", "", book_name.replace(".pdf", ""))
-    book_folder = f"{vault_path}/00_INBOX/Borradores_IA/{clean_name}"
+    clean_name = re.sub(r"[^\w\s-]", "", book_name.replace(".pdf", "")).strip()
+    if target_folder:
+        safe_folder = re.sub(r"[^\w\s\-/]", "", target_folder).strip().strip("/")
+        book_folder = f"{vault_path}/{safe_folder}/Borradores_IA/{clean_name}"
+    else:
+        book_folder = f"{vault_path}/00_INBOX/Borradores_IA/{clean_name}"
     chapters_folder = f"{book_folder}/Capitulos"
     os.makedirs(chapters_folder, exist_ok=True)
 

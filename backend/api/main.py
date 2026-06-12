@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException
+from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from rag.chat import query_rag, query_rag_sync, retrieve_documents
@@ -93,7 +93,7 @@ def save_vault_index(index):
 
 
 
-async def run_ingest(file_path: str, original_name: str, job_id: str):
+async def run_ingest(file_path: str, original_name: str, job_id: str, target_folder: str = None):
     print(f"Iniciando ingesta: {original_name} ({job_id})")
     _job_set(
         job_id,
@@ -107,12 +107,12 @@ async def run_ingest(file_path: str, original_name: str, job_id: str):
         # Index
         print("Indexando en Chroma...")
         _job_set(job_id, stage="indexing_chroma")
-        ingest_document(file_path)
+        await asyncio.to_thread(ingest_document, file_path)
         print(f"Chroma listo, generando notas en Obsidian...")
 
         # FIX generate notes on obsidian using tool
         _job_set(job_id, stage="writing_obsidian")
-        result = await write_book_to_vault(file_path, original_name, VAULT_PATH)
+        result = await write_book_to_vault(file_path, original_name, VAULT_PATH, target_folder)
         print(f"Obsidian listo: {result}")
         _job_set(job_id, status="done", stage="completed", result=result)
 
@@ -200,7 +200,9 @@ async def populate(reset: bool = False):
 
 @app.post("/upload")
 async def upload_files(
-    background_tasks: BackgroundTasks, files: list[UploadFile] = File(...)
+    background_tasks: BackgroundTasks,
+    files: list[UploadFile] = File(...),
+    target_folder: str = Form(None),
 ):
     _jobs_prune()
     print("Running upload process...")
@@ -221,7 +223,7 @@ async def upload_files(
             file=file.filename,
             file_path=file_path,
         )
-        background_tasks.add_task(run_ingest, file_path, file.filename, job_id)
+        background_tasks.add_task(run_ingest, file_path, file.filename, job_id, target_folder)
         jobs.append({"file": file.filename, "job_id": job_id})
 
     return {"message": "Archivos recibidos, procesando en background", "jobs": jobs}
