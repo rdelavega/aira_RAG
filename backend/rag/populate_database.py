@@ -37,7 +37,7 @@ def ingest_document(file_path, extra_metadata=None):
     print(f"📂 Cargando archivo: {file_path}")
     if file_path.endswith(".pdf"):
         loader = PyPDFLoader(file_path)
-    elif file_path.endswith(".md"):
+    elif file_path.endswith((".md", ".txt")):
         loader = TextLoader(file_path)
     else:
         raise ValueError(f"Unsupported file type: {file_path}")

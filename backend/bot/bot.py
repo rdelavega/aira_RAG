@@ -53,8 +53,8 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _is_allowed(str(update.effective_user.id)):
         return
     doc = update.message.document
-    if not doc.file_name.lower().endswith(".pdf"):
-        await update.message.reply_text("Solo acepto archivos PDF por esta vía.")
+    if not doc.file_name.lower().endswith((".pdf", ".txt")):
+        await update.message.reply_text("Solo acepto archivos PDF o TXT.")
         return
 
     await update.message.reply_text("📄 PDF recibido, iniciando procesamiento...")
@@ -129,7 +129,7 @@ def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("reset", cmd_reset))
-    app.add_handler(MessageHandler(filters.Document.PDF, handle_document))
+    app.add_handler(MessageHandler(filters.Document.PDF | filters.Document.TXT, handle_document))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     model = os.getenv("AGENT_MODEL", "claude-haiku-4-5")
     if ALLOWED_USERS:

@@ -61,7 +61,11 @@ async def write_book_to_vault(pdf_path: str, book_name: str, vault_path: str, ta
 
     from rag.populate_database import extract_text_from_pdf
 
-    full_text = extract_text_from_pdf(pdf_path)
+    if pdf_path.endswith(".txt"):
+        with open(pdf_path, encoding="utf-8", errors="ignore") as f:
+            full_text = f.read()
+    else:
+        full_text = extract_text_from_pdf(pdf_path)
 
     chapters = split_into_chapters(full_text)
 
